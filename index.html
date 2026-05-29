@@ -193,8 +193,21 @@ async function sb(path, opts = {}) {
   return r.status === 204 ? null : r.json();
 }
 
-// Fix encodage Instagram
-function fix(s) { if (!s) return ''; try { return decodeURIComponent(escape(s)); } catch(e) { return s; } }
+// Fix double-encodage Instagram (latin1 exporté puis lu comme UTF-8)
+function fix(s) {
+  if (!s) return '';
+  // Méthode principale : re-encoder en latin1 puis décoder en UTF-8
+  try {
+    const bytes = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i) & 0xff;
+    const decoded = new TextDecoder('utf-8').decode(bytes);
+    // Vérifier que le décodage a produit quelque chose de valide (pas de caractères de remplacement)
+    if (!decoded.includes('\ufffd')) return decoded;
+  } catch(e) {}
+  // Fallback : méthode escape/decodeURIComponent
+  try { return decodeURIComponent(escape(s)); } catch(e) {}
+  return s;
+}
 
 function parsePost(raw) {
   const lv = raw.label_values || [];
@@ -205,14 +218,14 @@ function parsePost(raw) {
     if (item.label !== undefined) {
       const l = fix(item.label), v = fix(item.value||'');
       if (l === 'URL') url = v;
-      else if (l.includes('gende') || l === 'Caption') caption = v;
+      else if (l.includes('gende') || l === 'Caption' || l === 'L\u00e9gende') caption = v;
     }
     if (item.title !== undefined) {
       const t = fix(item.title);
       if (t === 'Hashtags')
         for (const d of item.dict||[]) for (const dd of d.dict||[])
           if (fix(dd.label) === 'Nom') hashtags.push(fix(dd.value));
-      if (t.includes('ropr') || t === 'Owner')
+      if (t.includes('ropr') || t === 'Owner' || t === 'Propri\u00e9taire')
         for (const d of item.dict||[]) for (const dd of d.dict||[]) {
           const l=fix(dd.label), v=fix(dd.value);
           if (l==='Nom' && !author) author=v;
@@ -338,15 +351,24 @@ function toggleCap(i) {
 
 function readFileAsText(file) {
   return new Promise((resolve, reject) => {
-    // Vérifications préalables
     if (!file) { reject(new Error('Aucun fichier sélectionné')); return; }
-    if (file.size === 0) { reject(new Error('Le fichier est vide (taille 0). Vérifiez que vous avez bien extrait le .zip Instagram avant de choisir le fichier.')); return; }
-    if (file.name.endsWith('.zip')) { reject(new Error('Vous avez sélectionné le fichier .zip — il faut d\'abord l\'extraire (dézipper), puis choisir le fichier saved_posts.json à l\'intérieur.')); return; }
+    if (file.size === 0) { reject(new Error('Le fichier est vide. Vérifiez que vous avez bien extrait le .zip Instagram avant de choisir le fichier.')); return; }
+    if (file.name.endsWith('.zip')) { reject(new Error('Vous avez sélectionné le fichier .zip — il faut d\'abord l\'extraire, puis choisir saved_posts.json à l\'intérieur.')); return; }
 
+    // Lire en binaire pour éviter tout problème d'encodage automatique
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('Impossible de lire le fichier. Essayez de le rouvrir depuis votre gestionnaire de fichiers.'));
-    reader.readAsText(file, 'UTF-8');
+    reader.onload = e => {
+      try {
+        // Décoder les bytes bruts comme latin1 (= iso-8859-1, lecture 1:1)
+        // Instagram exporte en UTF-8 mais certains navigateurs re-encodent
+        const bytes = new Uint8Array(e.target.result);
+        let str = '';
+        for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+        resolve(str);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('Impossible de lire le fichier.'));
+    reader.readAsArrayBuffer(file);
   });
 }
 
