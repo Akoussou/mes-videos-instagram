@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mes Vidéos Instagram</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0e0e0f; --surface: #1a1a1c; --surface2: #232325;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.14);
+    --text: #f0ede8; --muted: #888580;
+    --accent: #e8c46a; --accent-dim: rgba(232,196,106,0.12); --accent-border: rgba(232,196,106,0.3);
+    --danger: #e07070; --success: #6ec78a; --info: #7ab8e8;
+    --radius: 10px; --radius-lg: 16px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; min-height: 100vh; }
+  .app { display: grid; grid-template-columns: 230px 1fr; min-height: 100vh; }
+
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 2rem 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; position: sticky; top: 0; height: 100vh; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 1.15rem; color: var(--accent); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px; }
+  .logo svg { width: 20px; height: 20px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius); font-size: 14px; color: var(--muted); cursor: pointer; border: none; background: none; width: 100%; text-align: left; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent); background: var(--accent-dim); }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .db-badge { display: inline-block; margin-top: 6px; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; background: var(--muted); transition: background 0.3s; }
+  .status-dot.ok { background: var(--success); }
+  .status-dot.err { background: var(--danger); }
+
+  .main { padding: 2.5rem; max-width: 960px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; font-weight: 400; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 2rem; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 2rem; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-val { font-family: 'DM Serif Display', serif; font-size: 2.2rem; color: var(--accent); }
+
+  .search-wrap { position: relative; margin-bottom: 1rem; }
+  .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+  .search-input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px 12px 40px; font-size: 14px; color: var(--text); font-family: 'DM Sans', sans-serif; transition: border 0.15s; outline: none; }
+  .search-input:focus { border-color: var(--accent-border); }
+  .search-input::placeholder { color: var(--muted); }
+  .filters { display: flex; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  select { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; font-size: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; outline: none; cursor: pointer; }
+  select:focus { border-color: var(--accent-border); }
+  .result-count { font-size: 13px; color: var(--muted); margin-bottom: 1rem; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 10px; transition: border-color 0.15s; }
+  .card:hover { border-color: var(--border2); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .card-author { font-weight: 500; font-size: 14px; color: var(--accent); }
+  .card-handle { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .card-caption { font-size: 13px; color: var(--text); margin: 8px 0; line-height: 1.6; max-height: 72px; overflow: hidden; position: relative; }
+  .card-caption::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 24px; background: linear-gradient(transparent, var(--surface)); }
+  .card-caption.expanded { max-height: none; }
+  .card-caption.expanded::after { display: none; }
+  .expand-btn { font-size: 12px; color: var(--muted); cursor: pointer; border: none; background: none; font-family: 'DM Sans', sans-serif; padding: 0; margin-top: 2px; }
+  .expand-btn:hover { color: var(--text); }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+  .tag { font-size: 11px; padding: 2px 9px; border-radius: 20px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .card-footer { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .link { font-size: 13px; color: var(--info); text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  mark { background: rgba(232,196,106,0.25); color: var(--accent); border-radius: 2px; padding: 0 1px; }
+
+  .import-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; margin-bottom: 1.25rem; }
+  .import-card h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+  .import-card p { font-size: 13px; color: var(--muted); line-height: 1.8; margin-bottom: 1.25rem; }
+  .import-card code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-size: 12px; color: var(--text); }
+  .drop-zone { border: 1px dashed var(--border2); border-radius: var(--radius); padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: all 0.15s; }
+  .drop-zone:hover { background: var(--surface2); border-color: var(--accent-border); }
+  .dz-icon { font-size: 2rem; margin-bottom: 8px; }
+  .drop-zone p { font-size: 13px; color: var(--muted); margin-bottom: 0; }
+  .progress-bar { width: 100%; height: 4px; background: var(--surface2); border-radius: 2px; margin-top: 1rem; overflow: hidden; display: none; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; width: 0%; }
+  .btn-danger { background: none; color: var(--danger); border: 1px solid rgba(224,112,112,0.3); border-radius: var(--radius); padding: 9px 18px; font-size: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.15s; }
+  .btn-danger:hover { background: rgba(224,112,112,0.08); }
+  .msg { font-size: 13px; margin-top: 12px; line-height: 1.6; min-height: 20px; }
+  .msg.success { color: var(--success); }
+  .msg.error { color: var(--danger); }
+  .msg.info { color: var(--muted); }
+  .loader { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 14px; line-height: 2; }
+
+  @media (max-width: 680px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; padding: 1rem; gap: 6px; }
+    .logo { width: 100%; margin-bottom: 0.25rem; }
+    .sidebar-footer { display: none; }
+    .nav-item { flex: 1; justify-content: center; font-size: 12px; padding: 8px 4px; }
+    .nav-item span { display: none; }
+    .main { padding: 1.25rem; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+      Mes Vidéos
+    </div>
+    <button class="nav-item active" onclick="switchPage('search', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span>Recherche</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('import', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Importer</span>
+    </button>
+    <div class="sidebar-footer">
+      <div><span class="status-dot" id="status-dot"></span><span id="status-txt">Connexion…</span></div>
+      <div id="sidebar-count" class="db-badge" style="display:none"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- RECHERCHE -->
+    <div class="page active" id="page-search">
+      <h1>Recherche</h1>
+      <p class="subtitle">Cherchez parmi vos vidéos Instagram sauvegardées</p>
+      <div class="stats" id="stats">
+        <div class="stat"><div class="stat-label">Vidéos</div><div class="stat-val" id="s-total">—</div></div>
+        <div class="stat"><div class="stat-label">Auteurs</div><div class="stat-val" id="s-authors">—</div></div>
+        <div class="stat"><div class="stat-label">Hashtags</div><div class="stat-val" id="s-tags">—</div></div>
+      </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="kw" type="text" placeholder="Mot-clé, #hashtag, @auteur…" oninput="debounceSearch()" />
+      </div>
+      <div class="filters">
+        <select id="f-author" onchange="doSearch()"><option value="">Tous les auteurs</option></select>
+        <select id="f-tag" onchange="doSearch()"><option value="">Tous les hashtags</option></select>
+      </div>
+      <div class="result-count" id="rcount"></div>
+      <div id="results"></div>
+    </div>
+
+    <!-- IMPORT -->
+    <div class="page" id="page-import">
+      <h1>Importer</h1>
+      <p class="subtitle">Mettez à jour votre bibliothèque depuis Instagram</p>
+      <div class="import-card">
+        <h3>Comment obtenir le fichier ?</h3>
+        <p>
+          Dans l'app Instagram :<br>
+          <strong>Paramètres → Votre activité → Télécharger vos informations</strong><br>
+          → Format : <strong>JSON</strong> → Demander le téléchargement<br>
+          → Instagram envoie un email avec le lien (quelques minutes)<br>
+          → Téléchargez et récupérez <code>saved_posts.json</code>
+        </p>
+      </div>
+      <div class="import-card">
+        <h3>Importer le fichier</h3>
+        <p>Seules les <strong>nouvelles vidéos</strong> seront ajoutées — les doublons sont ignorés automatiquement.</p>
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-in').click()">
+          <div class="dz-icon">📂</div>
+          <p>Cliquer pour choisir <code>saved_posts.json</code></p>
+          <p style="font-size:11px;margin-top:6px">Glisser-déposer également supporté</p>
+          <input type="file" id="file-in" accept=".json" style="display:none" onchange="importFile(event)" />
+        </div>
+        <div class="progress-bar" id="prog-bar"><div class="progress-fill" id="prog-fill"></div></div>
+        <p class="msg" id="import-msg"></p>
+      </div>
+      <div class="import-card">
+        <h3>Réinitialiser la base</h3>
+        <p>Supprime toutes les vidéos de Supabase. Action irréversible.</p>
+        <button class="btn-danger" onclick="resetDB()">Effacer toutes les vidéos</button>
+        <p class="msg" id="reset-msg"></p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const SUPA_URL = 'https://otteocjclvcxkzlmgirs.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90dGVvY2pjbHZjeGt6bG1naXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDI5ODYsImV4cCI6MjA5NDY3ODk4Nn0.yfukx0_wqYF_c_smnAH78y0LcixGQ9WJ8yFh_9DmXHM';
+const H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
+
+async function sb(path, opts = {}) {
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { headers: H, ...opts });
+  if (!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+}
+
+// Fix encodage Instagram
+function fix(s) { if (!s) return ''; try { return decodeURIComponent(escape(s)); } catch(e) { return s; } }
+
+function parsePost(raw) {
+  const lv = raw.label_values || [];
+  let url='', caption='', author='', handle='';
+  const hashtags = [];
+  for (const item of lv) {
+    if (!item) continue;
+    if (item.label !== undefined) {
+      const l = fix(item.label), v = fix(item.value||'');
+      if (l === 'URL') url = v;
+      else if (l.includes('gende') || l === 'Caption') caption = v;
+    }
+    if (item.title !== undefined) {
+      const t = fix(item.title);
+      if (t === 'Hashtags')
+        for (const d of item.dict||[]) for (const dd of d.dict||[])
+          if (fix(dd.label) === 'Nom') hashtags.push(fix(dd.value));
+      if (t.includes('ropr') || t === 'Owner')
+        for (const d of item.dict||[]) for (const dd of d.dict||[]) {
+          const l=fix(dd.label), v=fix(dd.value);
+          if (l==='Nom' && !author) author=v;
+          if (l.includes('profil')||l==='Username') handle=v;
+        }
+    }
+  }
+  return {
+    id: String(raw.fbid || raw.timestamp || Math.random()),
+    url, caption, author, handle, hashtags,
+    timestamp: raw.timestamp || 0,
+    date: raw.timestamp ? new Date(raw.timestamp*1000).toLocaleDateString('fr-FR') : ''
+  };
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function hl(text, kw) {
+  if (!kw||!text) return esc(text||'');
+  return esc(String(text)).replace(new RegExp(`(${kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark>$1</mark>');
+}
+
+function setStatus(ok, txt) {
+  document.getElementById('status-dot').className = 'status-dot ' + (ok?'ok':'err');
+  document.getElementById('status-txt').textContent = txt;
+}
+
+function switchPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id==='search') initSearch();
+}
+
+let _cache = null, _cacheTs = 0;
+async function getAll(force=false) {
+  if (!force && _cache && Date.now()-_cacheTs < 30000) return _cache;
+  const d = await sb('videos?select=*&order=timestamp.desc&limit=5000');
+  _cache = d||[]; _cacheTs = Date.now();
+  return _cache;
+}
+
+async function initSearch() {
+  try {
+    const data = await getAll();
+    const authors = [...new Set(data.map(v=>v.handle||v.author).filter(Boolean))].sort();
+    const allTags = [...new Set(data.flatMap(v=>v.hashtags||[]))].sort();
+
+    const fa=document.getElementById('f-author'), curA=fa.value;
+    fa.innerHTML = '<option value="">Tous les auteurs</option>' + authors.map(a=>`<option ${a===curA?'selected':''} value="${esc(a)}">${esc(a)}</option>`).join('');
+
+    const ft=document.getElementById('f-tag'), curT=ft.value;
+    ft.innerHTML = '<option value="">Tous les hashtags</option>' + allTags.map(t=>`<option ${t===curT?'selected':''} value="${esc(t)}">#${esc(t)}</option>`).join('');
+
+    document.getElementById('s-total').textContent = data.length;
+    document.getElementById('s-authors').textContent = new Set(data.map(v=>v.handle||v.author).filter(Boolean)).size;
+    document.getElementById('s-tags').textContent = new Set(data.flatMap(v=>v.hashtags||[])).size;
+
+    const badge = document.getElementById('sidebar-count');
+    badge.style.display='inline-block'; badge.textContent=data.length+' vidéos';
+    setStatus(true, 'Connecté');
+    doSearch(data);
+  } catch(e) {
+    setStatus(false, 'Erreur connexion');
+    document.getElementById('results').innerHTML='<div class="empty">Impossible de contacter Supabase.<br>Vérifiez votre connexion.</div>';
+  }
+}
+
+let _deb;
+function debounceSearch() { clearTimeout(_deb); _deb = setTimeout(()=>doSearch(), 220); }
+
+async function doSearch(preloaded) {
+  const data = preloaded || await getAll();
+  const kw = document.getElementById('kw').value.trim().toLowerCase();
+  const aF = document.getElementById('f-author').value.toLowerCase();
+  const tF = document.getElementById('f-tag').value.toLowerCase();
+
+  if (!data.length) {
+    document.getElementById('rcount').textContent='';
+    document.getElementById('results').innerHTML='<div class="empty">Aucune vidéo importée.<br>Allez dans <strong>Importer</strong> pour charger votre fichier.</div>';
+    return;
+  }
+
+  const res = data.filter(v => {
+    const h=(v.handle||v.author||'').toLowerCase();
+    if (aF && h!==aF) return false;
+    if (tF && !(v.hashtags||[]).map(t=>t.toLowerCase()).includes(tF)) return false;
+    if (!kw) return true;
+    return (v.caption||'').toLowerCase().includes(kw) ||
+      (v.author||'').toLowerCase().includes(kw) ||
+      (v.handle||'').toLowerCase().includes(kw) ||
+      (v.hashtags||[]).some(t=>t.toLowerCase().includes(kw.replace(/^#/,'')));
+  });
+
+  document.getElementById('rcount').textContent = kw||aF||tF
+    ? `${res.length} résultat${res.length!==1?'s':''} sur ${data.length} vidéos`
+    : `${data.length} vidéo${data.length!==1?'s':''} dans la bibliothèque`;
+
+  if (!res.length) { document.getElementById('results').innerHTML='<div class="empty">Aucune vidéo ne correspond.</div>'; return; }
+
+  document.getElementById('results').innerHTML = res.map((v,i)=>`
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <div class="card-author">${hl(v.author||v.handle,kw)}</div>
+          ${v.handle?`<div class="card-handle">@${hl(v.handle,kw)}</div>`:''}
+        </div>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">${esc(v.date||'')}</span>
+      </div>
+      ${v.caption?`<div class="card-caption" id="cap-${i}">${hl(v.caption,kw)}</div><button class="expand-btn" onclick="toggleCap(${i})">Voir plus</button>`:''}
+      ${(v.hashtags||[]).length?`<div class="tags">${(v.hashtags||[]).map(t=>`<span class="tag">${hl('#'+t,kw)}</span>`).join('')}</div>`:''}
+      <div class="card-footer">
+        ${v.url?`<a class="link" href="${esc(v.url)}" target="_blank" rel="noopener">Ouvrir sur Instagram ↗</a>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function toggleCap(i) {
+  const el=document.getElementById('cap-'+i);
+  el.classList.toggle('expanded');
+  el.nextElementSibling.textContent=el.classList.contains('expanded')?'Voir moins':'Voir plus';
+}
+
+async function importFile(e) {
+  const file=e.target.files[0]; if(!file) return;
+  const msg=document.getElementById('import-msg');
+  const bar=document.getElementById('prog-bar');
+  const fill=document.getElementById('prog-fill');
+  msg.className='msg info'; msg.innerHTML='<span class="loader"></span>Lecture du fichier…';
+  bar.style.display='block'; fill.style.width='5%';
+
+  try {
+    const raw = JSON.parse(await file.text());
+    if (!Array.isArray(raw)) throw new Error('Format inattendu');
+    const parsed = raw.map(parsePost).filter(v=>v.url||v.caption);
+    fill.style.width='20%';
+    msg.innerHTML='<span class="loader"></span>Vérification des doublons…';
+
+    const existing = await sb('videos?select=id');
+    const existIds = new Set((existing||[]).map(v=>v.id));
+    const newVids = parsed.filter(v=>!existIds.has(v.id));
+    fill.style.width='40%';
+
+    if (!newVids.length) {
+      fill.style.width='100%';
+      msg.className='msg info'; msg.textContent=`Aucune nouvelle vidéo (${parsed.length} déjà en base).`;
+      setTimeout(()=>bar.style.display='none',3000); return;
+    }
+
+    const BATCH=100;
+    for (let i=0;i<newVids.length;i+=BATCH) {
+      await sb('videos', {
+        method:'POST',
+        body: JSON.stringify(newVids.slice(i,i+BATCH)),
+        headers: {...H, 'Prefer':'resolution=ignore-duplicates,return=minimal'}
+      });
+      fill.style.width=Math.min(40+Math.round(60*(i+BATCH)/newVids.length),100)+'%';
+    }
+
+    _cache=null;
+    const data=await getAll(true);
+    fill.style.width='100%';
+    msg.className='msg success';
+    msg.textContent=`✓ ${newVids.length} nouvelle${newVids.length!==1?'s':''} vidéo${newVids.length!==1?'s':''} ajoutée${newVids.length!==1?'s':''} ! (${parsed.length-newVids.length} doublons ignorés)`;
+    document.getElementById('sidebar-count').textContent=data.length+' vidéos';
+    setTimeout(()=>bar.style.display='none',3000);
+  } catch(err) {
+    msg.className='msg error'; msg.textContent='Erreur : '+err.message; console.error(err);
+  }
+  e.target.value='';
+}
+
+// Drag & drop
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='var(--surface2)';dz.style.borderColor='var(--accent-border)';});
+dz.addEventListener('dragleave',()=>{dz.style.background='';dz.style.borderColor='';});
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.style.background='';dz.style.borderColor='';
+  const f=e.dataTransfer.files[0];
+  if(f){const inp=document.getElementById('file-in');const dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;importFile({target:inp});}
+});
+
+async function resetDB() {
+  if (!confirm('Supprimer TOUTES les vidéos ? Irréversible.')) return;
+  const msg=document.getElementById('reset-msg');
+  try {
+    await sb('videos?id=neq.___none___',{method:'DELETE',headers:{...H,'Prefer':'return=minimal'}});
+    _cache=null; await getAll(true);
+    msg.className='msg success'; msg.textContent='Base réinitialisée.';
+    document.getElementById('sidebar-count').style.display='none';
+  } catch(e) { msg.className='msg error'; msg.textContent='Erreur : '+e.message; }
+}
+
+setStatus(false,'Connexion…');
+initSearch();
+</script>
+</body>
+</html>
